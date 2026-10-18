@@ -145,7 +145,7 @@ int main(int argc, char *argv[])
     }
     else if (robotType == "double_integrator_2d")
     {
-      motionsFile = "db-lacam/motion_primitives/integrator2_2d_v0/500/spread/my_motions.bin.im.bin.sp.bin";
+      motionsFile = "db-lacam/motion_primitives/integrator2_2d_v0/my_motions.bin.im.bin.sp.bin";
     }
     else if (robotType == "double_integrator_3d")
     {

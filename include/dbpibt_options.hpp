@@ -33,7 +33,7 @@ struct Planner_options
   bool cluster_shuffle = false;  // shuffle each subcluster
   double cluster_distance = 1.0; // distance threshold for state-based clustering
   std::optional<unsigned int> seed;
-
+  double heuristic1_distance = 1.0; // search distance for lookup table w/ EST
   void print() const
   {
     std::cout << "*** options for the planner ***" << std::endl;
@@ -45,7 +45,6 @@ struct Planner_options
     std::cout << "  cluster_range: " << cluster_range << "\n";
     std::cout << "  cluster_n: " << cluster_n << "\n";
     std::cout << "  cluster_distance: " << cluster_distance << "\n";
-    std::cout << "  merged aabb: " << merged_aabb << "\n";
     std::cout << "***" << std::endl;
   }
 };

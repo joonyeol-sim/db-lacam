@@ -7,23 +7,50 @@ db-pibt:
     heuristic1: "reverse-search" 
     heuristic1_delta: 1.0
     heuristic1_num_primitives_0: 100 
+    heuristic1_distance: 1.0 # est lookup
     goal_delta: 0.5
-    cluster_range: 0.05
+    cluster_range: 0.05 # increase gives decrease in the 'after-clustering' motions' number
+    cluster_distance: 0.5 # 0.75, 1.0
     cluster_n: 1
-    merged_aabb: false
 db-lacam:
-  default:
+  unicycle_first_order:
     delta_0: 0.5
     goal_delta: 0.5
-    num_primitives_0: 50
+    num_primitives_0: 500
     alpha: 0.5 
     filter_duplicates: True
     heuristic1: "reverse-search" 
-    heuristic1_delta: 0.9
-    heuristic1_num_primitives_0: 100 
-    cluster_range: 0.01 # increase gives decrease in the 'after-clustering' motions' number
-    cluster_distance: 0.5 # 0.75, 1.0
+    heuristic1_delta: 0.5
+    heuristic1_num_primitives_0: 500 
+    heuristic1_distance: 0.5
+    cluster_range: 0.05 
+    cluster_distance: 0.5 
+    cluster_n: 1
+  single_integrator_2d:
+    delta_0: 0.5
+    goal_delta: 0.5
+    num_primitives_0: 500
+    alpha: 0.5 
+    filter_duplicates: True
+    heuristic1: "reverse-search" 
+    heuristic1_delta: 0.5
+    heuristic1_num_primitives_0: 500 
+    heuristic1_distance: 1.0
+    cluster_range: 0.05 
+    cluster_distance: 0.2
     cluster_n: 1
     cluster_shuffle: false
     refine_solution: false
     merged_aabb: false
+  double_integrator_2d:
+    delta_0: 0.5
+    goal_delta: 0.5
+    num_primitives_0: 500
+    alpha: 0.5 
+    filter_duplicates: True
+    heuristic1: "reverse-search" 
+    heuristic1_delta: 0.5
+    heuristic1_num_primitives_0: 500 
+    cluster_range: 0.05 
+    cluster_distance: 0.5
+    cluster_n: 1

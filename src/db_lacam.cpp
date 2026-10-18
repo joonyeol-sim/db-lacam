@@ -78,7 +78,7 @@ LaCAM::LaCAM(const dynobench::Problem _problem,
     fake_traj_wrappers[i].allocate_size(/*max_traj_size*/ 100, robots.at(i)->nx, robots.at(i)->nu);
     heuristics[i] = nigh_factory2<std::shared_ptr<AStarNode>>(problem.robotTypes[i], robots[i]);
     auto h_fun = std::make_shared<HeuRoadmapBwdNearestR<std::shared_ptr<AStarNode>, AStarNode>>(
-        robots[i], heuristics[i], problem.goals[i], /*use_nn*/ true);
+        robots[i], heuristics[i], problem.goals[i], /*use_nn*/ true, planner_options.heuristic1_distance);
 
     h_funs.push_back(h_fun);
   }
@@ -127,7 +127,7 @@ MultiRobotTrajectory LaCAM::solve()
     {
       if (ANYTIME)
         break;
-      export_node_expansion();
+      // export_node_expansion();
       return solution;
     }
     if (H_goal != nullptr)
@@ -202,7 +202,7 @@ MultiRobotTrajectory LaCAM::solve()
 
       dbN_to.push_back(std::make_shared<AStarNode>());
       double distance_to_goal = robots[r]->distance(H->dbN[r]->state_eig, problem.goals[r]);
-      std::cout << r << ", state: " << H->dbN[r]->state_eig.transpose() << ", goal: " << problem.goals[r].transpose() << std::endl;
+      // std::cout << r << ", state: " << H->dbN[r]->state_eig.transpose() << ", goal: " << problem.goals[r].transpose() << std::endl;
       std::cout << "robot " << r << " distance to goal: " << distance_to_goal << std::endl;
     }
     // HL Nodes can be revisitied, fix it?
@@ -210,12 +210,9 @@ MultiRobotTrajectory LaCAM::solve()
     if (invalid_node)
       continue;
     // low level search
-    std::cout << "L depth: " << L->depth << std::endl;
-    std::cout << "Q.size: " << H->Q.size() << std::endl;
     if (L->depth < H->Q.size())
     {
       const auto i = H->order[L->depth];
-      std::cout << "creating constraints for robot " << i << std::endl;
       assert(!rolled_robot_data[i].trajectories.empty());
       for (size_t j = 0; j < rolled_robot_data[i].trajectories.size(); j++)
       {
@@ -227,9 +224,6 @@ MultiRobotTrajectory LaCAM::solve()
         u_dbN->state_eig = u_state;
         u_dbN->gScore = rolled_robot_data[i].last_state_g[j];
         u_dbN->hScore = rolled_robot_data[i].last_state_h[j];
-        std::cout << "new constraint" << std::endl;
-        std::cout << "robot: " << i << std::endl;
-        std::cout << "state: " << u_state << std::endl;
         H->search_tree.push(new LNode(L, i, u_traj, u_state, u_dbN));
       }
     }
@@ -245,7 +239,6 @@ MultiRobotTrajectory LaCAM::solve()
       // OPEN.pop_front();
       continue;
     }
-      // continue;
 
     H->M_to = M_to;
     auto iter = EXPLORED.find(Q_to);
@@ -359,7 +352,6 @@ MultiRobotTrajectory LaCAM::solve()
 // exhaustive, does check all motions for collision, clustering
 void LaCAM::get_applicable_trajs_precise_exhaustive(std::shared_ptr<AStarNode> db_node, RobotData &robot_data, size_t robot_id, bool livelock = false)
 {
-  // std::cout << "////////get motions for robot: " << robot_id << "  //////////" << std::endl;
   // clear
   tmp_lazy_trajs.clear();
   tmp_traj_wrappers.clear();
@@ -367,13 +359,14 @@ void LaCAM::get_applicable_trajs_precise_exhaustive(std::shared_ptr<AStarNode> d
   tmp_traj_wrapper = fake_traj_wrappers[robot_id];
   // i. expand applicable motions
   expanders[robot_id].expand_lazy(db_node->state_eig, tmp_lazy_trajs);
+  // std::cout << "tmp lazy traj size: " << tmp_lazy_trajs.size() << std::endl;
   auto ff = validity_checker(robots[robot_id]);
   int num_valid_states = -1;
   double gScore = 0;
   double min_h = std::numeric_limits<double>::max();
   double max_h = std::numeric_limits<double>::lowest();
 
-  for (size_t j = 0; j < 3; j++) // tmp_lazy_trajs.size()
+  for (size_t j = 0; j < tmp_lazy_trajs.size(); j++) // 3 for debugging
   {
     auto &lazy_traj = tmp_lazy_trajs[j];
     tmp_traj_wrapper.set_size(lazy_traj.motion->traj.states.size());
@@ -411,7 +404,6 @@ void LaCAM::get_applicable_trajs_precise_exhaustive(std::shared_ptr<AStarNode> d
                                                                               &num_valid_states); });
     if (num_valid_states && num_valid_states < xs.size())
     {
-      // std::cout << "rollout, state violations" << std::endl;
       continue;
     }
     dynobench::Trajectory traj;
@@ -434,28 +426,20 @@ void LaCAM::get_applicable_trajs_precise_exhaustive(std::shared_ptr<AStarNode> d
                                       fcl::DefaultCollisionFunction<double>); });
     if (collision_data.result.isCollision())
       continue;
+
     last_state_h = h_funs[robot_id]->h(traj.goal);
-    // last_state_h = robots[robot_id]->distance(traj.goal, problem.goals[robot_id]); //h_funs[robot_id]->h(traj.goal);
-    // std::cout << ".................." << std::endl;
-    // std::cout << "lookup table gives: " << last_state_h << std::endl;
-    // std::cout << "euclidean distance: " << robots[robot_id]->distance(traj.goal, problem.goals[robot_id]) << std::endl;
-    // std::cout << ".................." << std::endl;
-    
+
     if (last_state_h == -1.0)
     {
-      last_state_h = robots[robot_id]->distance(traj.goal, problem.goals[robot_id]);
-      // std::cout << "calling est" << std::endl;
-      // est(traj.goal, problem, planner_options, robots[robot_id], robot_id, last_state_h,
-      //     heuristics_nn[robot_id], nullptr, *heuristics[robot_id], /*reverse search*/ false);
-      // std::cout << "what est gives: " << last_state_h << std::endl;
-      // std::cout << "euclidean distance: " << robots[robot_id]->distance(traj.goal, problem.goals[robot_id]) << std::endl;
-      // std::cout << ".................." << std::endl;
       
-      // if (last_state_h == -1.0)
-      // {
-      //   last_state_h = robots[robot_id]->distance(traj.goal, problem.goals[robot_id]);
-      //   continue;
-      // }
+      est(traj.goal, problem, planner_options, robots[robot_id], robot_id, last_state_h,
+          heuristics_nn[robot_id], nullptr, *heuristics[robot_id], /*reverse search*/ false);
+      
+      if (last_state_h == -1.0)
+      {
+        last_state_h = robots[robot_id]->distance(traj.goal, problem.goals[robot_id]);
+        continue;
+      }
     }
     tmp_data.last_state_h.push_back(last_state_h);
     tmp_data.trajectories.push_back(traj);
@@ -466,10 +450,6 @@ void LaCAM::get_applicable_trajs_precise_exhaustive(std::shared_ptr<AStarNode> d
     if (last_state_h > max_h)
       max_h = last_state_h;
   }
-  // // robot_data = GetTopNPerClusterByRelativeDistance(tmp_data, /*N*/1, /*threshold*/ planner_options.cluster_distance);
-  // for(auto t : tmp_data.trajectories){
-  //   expanded_trajs[robot_id].push_back(t);
-  // }
 
   if (livelock)
   {
@@ -479,10 +459,10 @@ void LaCAM::get_applicable_trajs_precise_exhaustive(std::shared_ptr<AStarNode> d
     robot_data = GetTopNPerClusterByH(tmp_data, /*range*/ planner_options.cluster_range, min_h, max_h, planner_options.cluster_n, 
                   /*shuffle*/ planner_options.cluster_shuffle, planner_options.seed);
 
-  // std::cout << "robot " << robot_id << " has motions (after clustering: )" << robot_data.trajectories.size() << std::endl;
-  for(auto t : robot_data.trajectories){
-    expanded_trajs[robot_id].push_back(t);
-  }
+  // std::cout << "robot " << robot_id << " has motions (after clustering) :" << robot_data.trajectories.size() << std::endl;
+  // for(auto t : robot_data.trajectories){
+  //   expanded_trajs[robot_id].push_back(t);
+  // }
 }
 
 // 1. cluster based on state distance

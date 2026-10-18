@@ -40,7 +40,7 @@ void est(const Eigen::VectorXd &state,
 {
   int expansions = 0;
   bool success = false;
-  double est_goal_delta = 0.9; // planner_options.goal_delta
+  double est_goal_delta = 0.5; // planner_options.goal_delta
   std::vector<Eigen::VectorXd> expanded_nodes;
   if (!reverse_search)
     planner_options.max_expands = 5000; // limit the expansion for the forward search

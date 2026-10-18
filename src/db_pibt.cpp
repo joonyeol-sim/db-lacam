@@ -65,6 +65,7 @@ bool db_PIBT::set_new_config(std::vector<Eigen::VectorXd> Q_from,
       }
     }
   }
+
   if (success)
   {
     for (auto p : order)

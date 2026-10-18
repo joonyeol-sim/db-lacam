@@ -43,8 +43,8 @@
 #include "dbcbs_utils.hpp"
 
 namespace fs = std::filesystem;
-// #define BASE "../../" // mrmp benchmark dir
-#define BASE "../../../../" // w.r.t db-LaCAM/build
+#define BASE "../../" // mrmp benchmark dir
+// #define BASE "../../../../" // w.r.t db-LaCAM/build
 using duration = std::chrono::duration<double>;
 using namespace dynoplan;
 
@@ -105,28 +105,26 @@ int main(int argc, char *argv[])
     return 1;
   }
   auto start_time = std::chrono::steady_clock::now();
+  // define the problem
+  dynobench::Problem problem(inputFile);
+  problem.models_base_path = BASE + std::string("examples/robot_types/");
+  std::string robot_type = problem.robotTypes[0];
   YAML::Node cfg = YAML::LoadFile(cfgFile);
-  cfg = cfg["db-lacam"]["default"];
+  cfg = cfg["db-lacam"][robot_type];
   // setup dblacam options
   Planner_options planner_options;
   planner_options.delta = cfg["delta_0"].as<float>();
   planner_options.max_motions = cfg["num_primitives_0"].as<size_t>();
   planner_options.alpha = cfg["alpha"].as<float>();
   planner_options.goal_delta = cfg["goal_delta"].as<float>();
+  planner_options.heuristic1_distance = cfg["heuristic1_distance"].as<float>();
   planner_options.cluster_range = cfg["cluster_range"].as<double>();
   planner_options.cluster_n = cfg["cluster_n"].as<size_t>();
-  planner_options.cluster_shuffle = cfg["cluster_shuffle"].as<bool>();
   planner_options.cluster_distance = cfg["cluster_distance"].as<double>();
-  planner_options.merged_aabb = cfg["merged_aabb"].as<bool>();
-  planner_options.refine_solution = cfg["refine_solution"].as<bool>();
   planner_options.seed = seed;
   planner_options.print();
   bool check_vel_magnitude = false; // only dynamics with speed limit
   Time_planner time_planner;
-  // define the problem
-  dynobench::Problem problem(inputFile);
-  problem.models_base_path = BASE + std::string("examples/robot_types/");
-  YAML::Node env = YAML::LoadFile(inputFile);
   // create robots
   std::vector<std::shared_ptr<dynobench::Model_robot>> robots;
   // read motions
@@ -141,9 +139,13 @@ int main(int argc, char *argv[])
     {
       motionsFile = "db-lacam/motion_primitives/unicycle1_v0/my_motions.bin.im.bin.sp.bin";
     }
+    else if (robotType == "single_integrator_2d")
+    {
+      motionsFile = "db-lacam/motion_primitives/integrator1_2d_v0/my_motions.bin.im.bin.sp.bin"; // handcrafted_motions.yaml";
+    }
     else if (robotType == "double_integrator_2d")
     {
-      motionsFile = "../motion_primitives/integrator2_2d_v0/500/spread/my_motions.bin.im.bin.sp.bin";
+      motionsFile = "db-lacam/motion_primitives/integrator2_2d_v0/500/spread/my_motions.bin.im.bin.sp.bin";
     }
     else if (robotType == "double_integrator_3d")
     {
@@ -303,8 +305,10 @@ int main(int argc, char *argv[])
       auto now = std::chrono::steady_clock::now();
       auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(first_run_time + (now - start_time_refine));
       // check if timelimit exceeded
-      if (elapsed.count() >= timelimit)
+      if (elapsed.count() >= timelimit){
+        std::cout << "hit the timelimit, break" << std::endl;
         break;
+      }
       // create new problem for a run
       dynamic_obstacles.trajectories.clear();
       dynobench::Problem problem_tmp;
